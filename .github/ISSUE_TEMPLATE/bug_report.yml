@@ -1,0 +1,84 @@
+name: Bug Report
+description: 报告可复现的过滤失效、误过滤或页面兼容问题
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先确认扩展和知乎页面均已重新加载，并删除所有账号与隐私数据。
+
+  - type: input
+    id: extension-version
+    attributes:
+      label: 扩展版本
+      placeholder: 例如 1.1.1
+    validations:
+      required: true
+
+  - type: input
+    id: chrome-version
+    attributes:
+      label: Chrome 版本
+      placeholder: 可在 chrome://version 查看
+    validations:
+      required: true
+
+  - type: input
+    id: page-url
+    attributes:
+      label: 页面 URL
+      description: 请移除查询参数中可能包含的隐私信息
+      placeholder: https://www.zhihu.com/
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: 问题类型
+      options:
+        - 应隐藏但未隐藏
+        - 不应隐藏但被隐藏
+        - 页面布局异常
+        - 扩展报错
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 说明实际行为和预期行为
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开……
+        2. 滚动到……
+        3. 看到……
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 脱敏后的诊断信息
+      description: 可提供 data-zhihu-clean-* 属性、控制台错误或最小 DOM 片段；请勿粘贴 Cookie、私信或个性化内容
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已在扩展管理页重新加载扩展并强制刷新知乎页面
+          required: true
+        - label: 我已确认报告中不包含账号凭据或其他隐私数据
+          required: true

@@ -1,0 +1,28 @@
+{
+  "name": "zhihu-clean",
+  "version": "1.1.1",
+  "description": "轻量、无额外权限的知乎首页推荐流与导航净化扩展。",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chiyahoho/zhihu-clean.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chiyahoho/zhihu-clean/issues"
+  },
+  "homepage": "https://github.com/chiyahoho/zhihu-clean#readme",
+  "keywords": [
+    "chrome-extension",
+    "manifest-v3",
+    "zhihu",
+    "content-filter"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check rules.js && node --check content.js && node --test"
+  }
+}
