@@ -4,7 +4,7 @@
   const rules = globalThis.ZhihuCleanRules;
   if (!rules) return;
 
-  const BLANK_CLASS = "zhihu-clean-blank";
+  const HIDDEN_CARD_CLASS = "zhihu-clean-hidden-card";
   const HIDDEN_ENTRY_CLASS = "zhihu-clean-hidden-entry";
   const CARD_SELECTOR = [
     ".TopstoryItem",
@@ -295,7 +295,7 @@
       hasFollowedEndorsement: hasFollowedEndorsement(card)
     });
 
-    card.classList.toggle(BLANK_CLASS, Boolean(reason));
+    card.classList.toggle(HIDDEN_CARD_CLASS, Boolean(reason));
 
     if (reason) {
       card.dataset.zhihuCleanReason = reason;
@@ -346,8 +346,8 @@
 
   function restoreAllCards() {
     pendingCards.clear();
-    for (const card of document.querySelectorAll(`.${BLANK_CLASS}`)) {
-      card.classList.remove(BLANK_CLASS);
+    for (const card of document.querySelectorAll(`.${HIDDEN_CARD_CLASS}`)) {
+      card.classList.remove(HIDDEN_CARD_CLASS);
       delete card.dataset.zhihuCleanReason;
     }
   }

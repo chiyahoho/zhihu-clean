@@ -1,8 +1,6 @@
-/* visibility 会隐藏整张卡片，同时保留它原来的高度和位置。 */
-.zhihu-clean-blank {
-  visibility: hidden !important;
-  pointer-events: none !important;
-  user-select: none !important;
+/* 过滤掉整张推荐卡片，不保留空白位置。 */
+.zhihu-clean-hidden-card {
+  display: none !important;
 }
 
 /* 导航和侧栏推广入口直接移除，不为它们保留空位。 */

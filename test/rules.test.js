@@ -60,11 +60,11 @@ test("parses Zhihu vote count formats", () => {
   assert.equal(rules.parseVoteCount("赞同"), null);
 });
 
-test("blanks explicit ads", () => {
+test("hides explicit ads", () => {
   assert.equal(rules.classifyFacts({ explicitAd: true }), "explicit-ad");
 });
 
-test("only blanks unrelated articles with at least 1,000 votes and no followed endorsement", () => {
+test("only hides unrelated articles with at least 1,000 votes and no followed endorsement", () => {
   assert.equal(rules.classifyFacts({
     explicitAd: false,
     type: "article",
@@ -98,7 +98,7 @@ test("only blanks unrelated articles with at least 1,000 votes and no followed e
   }), null);
 });
 
-test("only blanks low-vote answers when they are unrelated", () => {
+test("only hides low-vote answers when they are unrelated", () => {
   assert.equal(rules.classifyFacts({
     explicitAd: false,
     type: "answer",
