@@ -44,6 +44,7 @@
     '[class*="navItem"]'
   ].join(",");
   const pendingCards = new Set();
+  let positiveEvidenceByCard = new WeakMap();
   let flushScheduled = false;
   let uiCleanupScheduled = false;
   let lastUrl = location.href;
@@ -165,21 +166,35 @@
       location.pathname === "/";
   }
 
+  function findOutermostCard(element) {
+    let card = element.matches(CARD_SELECTOR) ? element : element.closest(CARD_SELECTOR);
+    // 同一条推荐在不同版本的知乎 DOM 中可能同时包含 TopstoryItem 和
+    // 一层或多层 FeedItem。始终返回最外层匹配项，避免把内层正文隐藏后
+    // 留下一个仍占位的空卡片外壳。
+    while (card) {
+      const parentCard = card.parentElement && card.parentElement.closest(CARD_SELECTOR);
+      if (!parentCard) return card;
+      card = parentCard;
+    }
+
+    return null;
+  }
+
   function findCard(node) {
     if (!(node instanceof Element)) return null;
 
-    if (node.matches(CARD_SELECTOR)) return node;
-
-    const directCard = node.closest(CARD_SELECTOR);
+    const directCard = findOutermostCard(node);
     if (directCard) return directCard;
 
     const contentItem = node.matches(CONTENT_SELECTOR)
       ? node
       : node.closest(CONTENT_SELECTOR) || node.querySelector(CONTENT_SELECTOR);
 
+    if (!contentItem) return null;
+
     // .Card 只是旧版/改版的兜底；只有先确认存在回答或文章内容时才使用，
     // 避免把右栏或整个信息流容器误当成一张推荐卡片。
-    return contentItem ? contentItem.closest(".Card") : null;
+    return findOutermostCard(contentItem) || contentItem.closest(".Card");
   }
 
   function detectType(card) {
@@ -285,14 +300,25 @@
   function inspectCard(card) {
     const type = detectType(card);
     const votes = getVoteCount(card);
-    const relevant = (type === "answer" || type === "article") &&
+    const relevantNow = (type === "answer" || type === "article") &&
       rules.isRelevantText(getRelevantText(card));
+    const followedNow = hasFollowedEndorsement(card);
+    const previousEvidence = positiveEvidenceByCard.get(card);
+    const evidence = {
+      // 展开正文时，知乎会短暂替换折叠摘要和推荐来源节点。
+      // 已经识别到的正向信号不应因这种过渡 DOM 而丢失。
+      relevant: Boolean(previousEvidence && previousEvidence.relevant) || relevantNow,
+      hasFollowedEndorsement:
+        Boolean(previousEvidence && previousEvidence.hasFollowedEndorsement) || followedNow
+    };
+    positiveEvidenceByCard.set(card, evidence);
+
     const reason = rules.classifyFacts({
       explicitAd: isExplicitAd(card),
       type,
       votes,
-      relevant,
-      hasFollowedEndorsement: hasFollowedEndorsement(card)
+      relevant: evidence.relevant,
+      hasFollowedEndorsement: evidence.hasFollowedEndorsement
     });
 
     card.classList.toggle(HIDDEN_CARD_CLASS, Boolean(reason));
@@ -346,6 +372,7 @@
 
   function restoreAllCards() {
     pendingCards.clear();
+    positiveEvidenceByCard = new WeakMap();
     for (const card of document.querySelectorAll(`.${HIDDEN_CARD_CLASS}`)) {
       card.classList.remove(HIDDEN_CARD_CLASS);
       delete card.dataset.zhihuCleanReason;
