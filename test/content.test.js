@@ -141,11 +141,14 @@ function runContentScript(root) {
       observers.push(this);
     }
 
-    observe() {}
+    observe(target, options) {
+      this.options = options;
+    }
   }
 
   const context = vm.createContext({
     URL,
+    atob,
     Element: FakeElement,
     MutationObserver: FakeMutationObserver,
     NodeFilter: { SHOW_TEXT: 4 },
@@ -182,5 +185,89 @@ test("expansion DOM changes do not discard previously found relevant evidence", 
   title.textContent = "正文加载中";
   observer.callback([{ type: "characterData", target: { parentElement: title } }]);
 
+  assert.equal(outer.classList.contains(HIDDEN_CARD_CLASS), false);
+});
+
+function setFeedMetadata(feed, decoded) {
+  feed.attributes["data-za-extra-module"] = JSON.stringify({
+    attached_info_bytes: Buffer.from(decoded, "binary").toString("base64")
+  });
+}
+
+for (const type of ["answer", "article"]) {
+  test(`promotion metadata overrides relevant high-vote ${type}`, () => {
+    const { root, outer, inner } = createAnswerCard("人工智能投资研究");
+    if (type === "article") {
+      const content = inner.children[0];
+      content.selectorMatches.delete(".AnswerItem");
+      content.selectorMatches.add(".ArticleItem");
+      content.classList.remove("AnswerItem");
+    }
+    inner.children[0].children[1].textContent = "赞同 20000";
+    inner.children[0].children[1].attributes["aria-label"] = "赞同 20000";
+    setFeedMetadata(inner, "\x00PromotionExtra\xffZPlus\x00");
+    runContentScript(root);
+    assert.equal(outer.dataset.zhihuCleanReason, "explicit-ad");
+    assert.equal(inner.classList.contains(HIDDEN_CARD_CLASS), false);
+  });
+}
+
+test("promotion metadata also works when the FeedItem is the outer card", () => {
+  const { root, outer, inner } = createAnswerCard("人工智能投资研究");
+  root.children = [inner];
+  inner.parentElement = root;
+  setFeedMetadata(inner, "PromotionExtra ZPlus");
+  runContentScript(root);
+  assert.equal(inner.dataset.zhihuCleanReason, "explicit-ad");
+  assert.equal(outer.classList.contains(HIDDEN_CARD_CLASS), false);
+});
+
+for (const decoded of ["TS_SOURCE_TWOTOWER_MULTIPLE_TYPE", "PromotionExtra", "ZPlus"]) {
+  test(`ordinary or incomplete metadata remains visible: ${decoded}`, () => {
+    const { root, outer, inner } = createAnswerCard("人工智能投资研究");
+    setFeedMetadata(inner, decoded);
+    runContentScript(root);
+    assert.equal(outer.classList.contains(HIDDEN_CARD_CLASS), false);
+  });
+}
+
+test("promotion prose and metadata on arbitrary content elements are ignored", () => {
+  const { root, outer, title } = createAnswerCard("人工智能 PromotionExtra ZPlus");
+  setFeedMetadata(title, "PromotionExtra ZPlus");
+  runContentScript(root);
+  assert.equal(outer.classList.contains(HIDDEN_CARD_CLASS), false);
+});
+
+test("markers split across FeedItem nodes do not count as promotion metadata", () => {
+  const { root, outer, inner } = createAnswerCard("人工智能投资研究");
+  const secondFeed = new FakeElement("div", [".Feed"]);
+  outer.append(secondFeed);
+  setFeedMetadata(inner, "PromotionExtra");
+  setFeedMetadata(secondFeed, "ZPlus");
+  runContentScript(root);
+  assert.equal(outer.classList.contains(HIDDEN_CARD_CLASS), false);
+});
+
+for (const metadata of ["{", "null", "[]", '{"attached_info_bytes":null}',
+  '{"attached_info_bytes":123}', '{"attached_info_bytes":"%%%"}']) {
+  test(`invalid metadata is ignored: ${metadata}`, () => {
+    const { root, outer, inner } = createAnswerCard("人工智能投资研究");
+    inner.attributes["data-za-extra-module"] = metadata;
+    assert.doesNotThrow(() => runContentScript(root));
+    assert.equal(outer.classList.contains(HIDDEN_CARD_CLASS), false);
+  });
+}
+
+test("delayed metadata attributes re-evaluate the outer card and removal restores it", () => {
+  const { root, outer, inner } = createAnswerCard("人工智能投资研究");
+  const observer = runContentScript(root);
+  assert.equal(observer.options.attributes, true);
+  assert.deepEqual(Array.from(observer.options.attributeFilter), ["data-za-extra-module"]);
+  assert.equal(outer.classList.contains(HIDDEN_CARD_CLASS), false);
+  setFeedMetadata(inner, "PromotionExtra ZPlus");
+  observer.callback([{ type: "attributes", target: inner, attributeName: "data-za-extra-module" }]);
+  assert.equal(outer.dataset.zhihuCleanReason, "explicit-ad");
+  delete inner.attributes["data-za-extra-module"];
+  observer.callback([{ type: "attributes", target: inner, attributeName: "data-za-extra-module" }]);
   assert.equal(outer.classList.contains(HIDDEN_CARD_CLASS), false);
 });

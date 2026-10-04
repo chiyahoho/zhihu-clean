@@ -272,7 +272,34 @@
     return /关注的人|关注的.{0,20}(?:赞同|推荐)|(?:赞同|推荐)了(?:该|这)?(?:回答|文章)?/.test(sourceText);
   }
 
+  function hasPromotionMetadata(card) {
+    const feedSelector = '.Feed, [data-za-detail-view-path-module="FeedItem"], [data-za-module="FeedItem"]';
+    const feeds = card.matches(feedSelector)
+      ? [card, ...card.querySelectorAll(feedSelector)]
+      : card.querySelectorAll(feedSelector);
+
+    for (const feed of feeds) {
+      const metadata = feed.getAttribute("data-za-extra-module");
+      if (!metadata) continue;
+
+      try {
+        const payload = JSON.parse(metadata);
+        const attachedInfo = payload && payload.attached_info_bytes;
+        if (typeof attachedInfo !== "string") continue;
+        // 保留二进制字符串：这里查找的是已观察到的 ASCII 元数据标记。
+        const decoded = atob(attachedInfo);
+        if (decoded.includes("PromotionExtra") && decoded.includes("ZPlus")) return true;
+      } catch {
+        // 无效或尚未完整加载的元数据不构成推广证据。
+      }
+    }
+
+    return false;
+  }
+
   function isExplicitAd(card) {
+    if (hasPromotionMetadata(card)) return true;
+
     if (card.matches('[data-ad], [data-is-ad="true"], [data-type="ad"]')) {
       return true;
     }
@@ -391,7 +418,7 @@
     if (!isRecommendationPage()) return;
 
     for (const mutation of mutations) {
-      if (mutation.type === "characterData") {
+      if (mutation.type === "characterData" || mutation.type === "attributes") {
         queueFromNode(mutation.target);
       } else {
         for (const addedNode of mutation.addedNodes) queueFromNode(addedNode);
@@ -402,6 +429,8 @@
   observer.observe(document.documentElement, {
     childList: true,
     characterData: true,
+    attributes: true,
+    attributeFilter: ["data-za-extra-module"],
     subtree: true
   });
 
